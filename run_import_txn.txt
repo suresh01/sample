@@ -1,0 +1,32 @@
+How to run import txn?..
+
+/home3/e3003091/pdir20160708/ua_pos_dc
+	
+maintain following details in "import.loc"
+
+===> vi import.loc
+
+location mailbox
+mailbox.name CLEARING1
+mailbox.target_name CLEARING1
+mailbox.gps_route_recv no
+mailbox.gps_route_send no
+mailbox.read_buf_size 10240
+mailbox.src_inst_id 1
+mailbox.src_file_type 01
+mailbox.debug_on 0
+mailbox.diff_curr_exp_total 0
+
+
+
+after maintain must be check the extara spaces using ":set list" unix commands
+
+unset the UA_BASE scripts - 
+
+===>unset UA_BASE
+
+open "test_import.sh" to get the run import txn commands..
+
+===> ua_dc_import import.cfg pos_dc
+
+go to log file to check the txn details and analyz the issue..

@@ -1,0 +1,36 @@
+How to run import txn?..
+1. maintain bin in following table.
+	1. bin
+	2. bin_specific_link
+	3. mbr_bin
+	4. mbr_alias
+	5. mc_specific (for master card bin)
+
+
+2. maitain institution id.
+	1. acq_entity
+	2. acq_entity_address
+	3. acq_entity_contact
+	4. allowance
+	5. allw_mcc
+	6. mcc
+	7. alt_merchant_id
+	8. card_scheme ( for new card scheme maintain ex:18)
+	9. card_scheme_map
+	10.clearing_profile
+	11.config_value_ctrl
+	12.inst_address
+	13.inst_calendar
+	14.inst_contact
+	15.inst_curr_cnv_plan
+	16.inst_file_allow
+	17. inst_file_type
+	18. inst_gl
+	19. institution
+	20. master_address
+	21. master_contact
+	22. merchant_type
+
+must be maintain fllowing details for BIN and New Institution.
+
+based on issue to resolve the issue.

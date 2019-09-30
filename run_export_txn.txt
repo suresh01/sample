@@ -1,0 +1,40 @@
+How to run export txn?..
+
+
+1. for export to dina go to /home3/e3003091/pdir20160708/ua_dina==>
+
+2. Edit export.loc file which is given below
+
+3. get few details from cutoff_batch table
+
+===> export.loc
+
+location database
+db.server_name
+db.user_name
+db.user_password
+db.config_file dinaclearing.cfg dinarecon.cfg
+db.src_inst_id	1 (SRC_INST_ID)------------
+db.dest_inst_id 18  (DEST_INST_ID)-------------
+db.dest_file_type 20  (DEST_FILE_TYPE)-----------
+db.clearing_date 15365 (CLR_DATE_J)-----------
+db.debug_on 0
+db.test_run 0
+db.multi_batch_run 0
+db.dummy_file_header_trailer 0
+db.export_to_connex 0
+
+
+4. run the last line of test_export.sh
+
+5. it will create a export file with name define in base2.loc file file.name field
+
+
+Issue : 
+
+In case (CLR_DATE_J) is 0 then check business_day, calendar, holiday_link, holiday_lis,inst_calendar
+
+
+For Master Card transaction : --
+--------------------------------
+/Osrc/e3026054/pdir-toribm41-l1-Apr2016-CLR/ua_ipm_clear> ipmv -t ipmclear.dat

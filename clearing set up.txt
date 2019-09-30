@@ -1,0 +1,452 @@
+-----------------------------------------------------------------------------------------------------------------
+
+Onsite DB - masdev3
+hp box - 10.84.226.226
+tor ibm (AIX) box - 172.28.87.119
+Solaris box - Solardev.corp.efunds.com
+
+1. cp .profile and pkg_env.ksh from other user to home2 dir
+2. edit pkg_env.ksh for each OS and create the respective pdir, bdir and sdir dir
+3. go to sdir and run -> opc get . and opc primedir .
+4. opc get autobase-0.1.521  or 525 and ua_pos_dc-0.17.18
+5. in pdir create tmp directory
+6. compile key_mgmt_lib-0.2.5 and token_api-1.4.0, token_srv(not required) and dbm_api-3.33.2
+    compile step:-
+	sdir; csp dbm_api-3.33.4;
+	bdir;  cbpdob ---enable-symbols ---with-ep_acq  ---enable-useosstl ---enable-tokenizer dbm_api-3.33.4;
+	mbp dbm_api-3.33.4;
+
+Copy mbint from bin 
+/home2/e3026054/pdir-torhps-jan17/bin> which mbinit
+/Osrc/e3003091/clrdevbaselines/pdirHPUX-1131-64_CLR2.4SP10_PADSS/bin/mbinit
+/home2/e3026054/pdir-torhps-jan17/bin> ln -s /Osrc/e3003091/clrdevbaselines/pdirHPUX-1131-64_CLR2.4SP10_PADSS/bin/mbinit mbinit
+/home2/e3026054/pdir-torhps-jan17/bin> pdeploy
+and set softlink
+
+here After use pdeploy command.
+
+7. compile dbm_api
+8. compOct2015 have the list of all clearing package needs to be compile
+9. get all the packages (opc get `cat compOct2015`) and compile
+
+10. in istparam.cfg chage the DB detail (in KLC & TOKEN also)
+
+11. run the below sql only for first time
+	delete from token_keys;
+	delete from ist_pan_token;
+	delete from pan_tok_count;
+	delete from token_keys_count;
+	commit;
+	insert into pan_tok_count (counter_id, counter) values (1, hextoraw('0000000000000001'));
+	insert into token_keys_count (key_id_idx, key_id) values (1, hextoraw('0000000000000001'));
+	commit;
+
+12. create certdata dir in pdir/ositeroot/
+13. go to pdir/ositeroot/certdata and run the below command
+	klc_init_master
+	mbinit
+	klcutil -g 2
+	klcutil -l
+	init_token
+
+	mbkill -a -e;cleanipc.sh;
+
+	startist;startclr
+	log
+	tail -f tokenizer.debug
+	tail -f CLEARING1.debug
+	cd .. and check tail -100 startist.log 
+
+Note : incase if you faceing any issue in share memory start then check and compile "unlockshm_opt-0.0.1" to restart.
+Note : any issue in run import txn.
+Note : incase of issue in pan then compile the below package "echotoken_opt-0.0.0"
+Note : if dont wan token and then compile "default_opt-0.0.4" also.
+
+Error code : 
+/Osrc/e3026054/pdir-phxlevhtorvh01-June2016/ua_pos_dc> ua_dc_import import.cfg pos_dc
+UaException: Can not open file [tc57.dat]!(number=20005)(level=8)(loc=)
+/Osrc/e3026054/pdir-phxlevhtorvh01-June2016/ua_pos_dc> ls 
+
+Solution:
+	 compile this package "clearfile_opt-0.0.1"
+--------------------------------------------------------------------------------------------------------------------------
+
+/Osrc/e3021942/pdir-toribm41-l1-Apr2016-CLR/log/debug> tskcmd
+[  0] mb                                      : Pid: 19529976  Type: 1
+[  1] mblima                                  : Pid: 27132084  Type: 1
+[  2] mbtm                                    : Pid: 21692666  Type: 1
+[  3] mbport                                  : Pid: 9502862  Type: 1
+[  4] mbrns                                   : Pid: 50528408  Type: 1
+[  5] gl_srv clearing 1                       : Pid: 22675462  Type: 1
+[  6] gl_export clearing                      : Pid: 51445822  Type: 1
+[  7] gl_totaller clearing                    : Pid: 49807612  Type: 1
+[  8] mbrm                                    : Pid: 18940088  Type: 1
+[  9] tokenizer                               : Pid: 53870698  Type: 1
+[ 10] sch_mon                                 : Pid: 53149698  Type: 1
+[ 11] guiserver                               : Pid: 19333278  Type: 1
+[ 12] CLEARING1                               : Pid: 50397344  Type: 1
+
+Means all the clearing up
+
+14. go to pdir/ua_pos_dc (pos)
+	i. in import.loc file set the below
+		mailbox.name CLEARING1
+		mailbox.target_name CLEARING1
+		mailbox.src_inst_id 1
+		mailbox.src_file_type 01
+
+15. dc_base2.des -> TC57 file layout
+    dc_base2tvs.map -> TC57 field map to CanonicalClearing field
+    base2clearing.cfg -> CanonicalClearing field map to DB table field
+16. run unset UA_BASE for each session
+
+17. copy or create a file to pdir/ua_pos_dc dir and encrypt the file(EncryptFile)
+	sangeeta file path:- home2/e3002854/tc57
+18. rename the file to file.name field in dc_base2.loc
+19. run last in test_import.sh file
+20. go to log (log) and check ua_pos_dc.debug, CLEARING1.debug and startist.log log file
+	in CLEARING1.debug - check the in_file_nbr and trans_seq_nbr that should be present in IN_DRAFT_MAIN table
+	in IN_DRAFT_MAIN table PRI_DEST_INST_ID is coming as number with ~ then there is some error
+	there will be two entry for in_file_nbr in CUTOFF_BATCH table (cutoff_status R-ready, E-exported)
+		1. for card association 2. for MAS
+
+
+Exporting a file:-
+ua_base2 - VISA
+ua_ipm_clear - Master card
+
+1. for export to VISA, go to pdir/ua_base2
+2. edit export.loc for below field from cutoff_batch table
+	db.server_name PADSS
+	db.user_name masdev2
+	db.user_password masdev2
+
+	db.src_inst_id 1
+	db.dest_inst_id 04
+	db.dest_file_type 41
+	db.clearing_date 15365 (CLR_DATE_J)
+3. run the last line of test_export.sh
+4. it will create a export file with name define in base2.loc file file.name field
+5. export file will be in encrypted format to decrypt the file run DecryptFile filename
+6. in CUTOFF batch table cutoff_status will be updated to E (exported)
+7. import.cfg will have info of the files use in the export process
+
+To enable debug:-
+1. for ua go the adoptor change the below line import.loc file
+	mailbox.debug_on 5
+2. in istparam.cfg -> rtm.event.category 5
+
+Pdeploy:-
+/home2/e3021942> which mbinit
+/Osrc/e3003091/DEV_BASE/FO_7.7.0.00.09_AIX-612_BASE/bin/mbinit
+/home2/e3021942> cp /Osrc/e3003091/DEV_BASE/FO_7.7.0.00.09_AIX-612_BASE/bin/mbinit pdir/bin/
+
+-----------------------------------------------------------------------------------------------------------------
+
+Compile CL 2.3 Environment :---(Sun Solar Dev Box)
+
+1. cp .profile and pkg_env.ksh from other user to home2 dir
+2. edit pkg_env.ksh for each OS and create the respective pdir, bdir and sdir dir
+3. go to sdir and run -> opc get . and opc primedir .
+4. opc get autobase-0.1.521  or 525 and ua_pos_dc-0.17.18
+5. in pdir create tmp directory
+6. compile key_mgmt_lib-0.2.5 and token_api-1.4.0, token_srv(not required) and dbm_api-3.30.7
+compile step:-
+	sdir; csp dbm_api-3.30.7;
+	bdir;  cbpdob ---enable-symbols ---with-ep_acq  ---enable-useosstl ---enable-tokenizer dbm_api-3.30.7;
+	mbp dbm_api-3.30.7;
+
+-----------------------------------------------------------------------------------------------------------------
+Working with Encrypted File Generation: 
+-----------------------------------------------
+1. we need default format (without token and unlockshm.).
+2. compile default_opt and unlockshm_opt then ur environment will support for Encrypted Files
+
+Working without Encrypted File formate : 
+-----------------------------------------------
+1. compile the following package orderwise.
+	a. default_opt-0.0.4
+	b. unlockshm_opt-0.0.1
+	c. echotoken_opt-0.0.1
+	d. clearfile_opt-0.0.1
+
+2. Follow tokmas.cfg file generateion steps..
+
+3. It'l support for non-encrypt file formate now.
+
+
+
+-----------------------------------------------------------------------------------------------------------------
+			New EnVironment For Clearing CL2.4 with 64 Bit
+-----------------------------------------------------------------------------------------------------------------
+/home/India/e3006526/tgz> build_env -os=SOL-211-64
+.
+.
+.
+.
+.
+INFO: Done deleting obsolete libraries
+INFO: Made Profile [/home/India/e3006526/profile20170505]
+Do you want to exercise some run test on the binaries ? Choice:[0-1]
+ [0] - Yes (default)
+ [1] - No
+1
+INFO: Skipped run test
+INFO: Version 1.15
+INFO: OsString=[SOL-211]
+INFO: Found installed product FO77010
+INFO: Found installed product CL24
+
+   = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+   = = =                                               = = =
+   = = =                 W A R N I N G                 = = =
+   = = =   Beware that this option will violate PADSS  = = =
+   = = =                                               = = =
+   = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+Do you want to install "Override with file in clear (cfi-SOL-64.tgz)"
+ Choice:[0-1]
+ [0] - no (default)
+ [1] - yes
+0
+
+   = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+   = = =                                               = = =
+   = = =                 W A R N I N G                 = = =
+   = = =   Beware that this option will violate PADSS  = = =
+   = = =                                               = = =
+   = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+Do you want to install "Override with hex-dump in clear (chx-SOL-64.tgz)"
+ Choice:[0-1]
+ [0] - no (default)
+ [1] - yes
+0
+
+   = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+   = = =                                               = = =
+   = = =                 W A R N I N G                 = = =
+   = = =   Beware that this option will violate PADSS  = = =
+   = = =                                               = = =
+   = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+Do you want to install "Override tokenization with ECHO only (ect-SOL-64.tgz)"
+ Choice:[0-1]
+ [0] - no (default)
+ [1] - yes
+0
+
+   = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+   = = =                                               = = =
+   = = =                 W A R N I N G                 = = =
+   = = =   Beware that this option will violate PADSS  = = =
+   = = =                                               = = =
+   = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+Do you want to install "Override with shared memory unlocked (lsh-SOL-64.tgz)"
+ Choice:[0-1]
+ [0] - no (default)
+ [1] - yes
+1
+:::Status(before installation):::
+Current overriding options:
+clear-hex-dump                 : no
+clear-file                     : no
+SHA1-token                     : no
+ECHO-token                     : no
+unlocked-shmem                 : no
+INFO: extracted liboOptLockShm-0.0.1.so from /tmp/lsh-SOL-64.tgz to /home/India/e3006526/pdir20170505/lib (0)
+INFO: created symbolic links to liboOptLockShm-0.0.1.so
+INFO: Done installing 'Override with shared memory unlocked (lsh-SOL-64.tgz)'
+INFO: Installed 1 overriding option(s)
+:::Status(after installation):::
+Current overriding options:
+clear-hex-dump                 : no
+clear-file                     : no
+SHA1-token                     : no
+ECHO-token                     : no
+unlocked-shmem                 : yes
+INFO: Installation in /home/India/e3006526/pdir20170505
+INFO: Profile in /home/India/e3006526/profile20170505
+INFO: Log file in /home/India/e3006526/build_env.log
+
+Program Completed
+
+ - = - = - = -
+-----------------------------------------------------------------------------------------------------------------
+
+1. Configure all the DB and Directory in profile20170505
+2. Copy istparam.cfg and configure db details.
+3. start process of creation certdata dir in pdir/ositeroot/
+4. Run pdeploy
+5. go to pdir/ositeroot/certdata and run the below command
+	
+	it's delete old recoreds from db.
+	delete from token_keys;
+	delete from ist_pan_token;
+	delete from pan_tok_count;
+	delete from token_keys_count;
+	commit;
+	insert into pan_tok_count (counter_id, counter) values (1, hextoraw('0000000000000001'));
+	insert into token_keys_count (key_id_idx, key_id) values (1, hextoraw('0000000000000001'));
+	commit;
+
+	klc_init_master
+	mbinit
+	klcutil -g 2
+	klcutil -l
+	init_token
+
+	mbkill -a -e;cleanipc.sh;
+
+	startist
+	log
+	tail -f tokenizer.debug
+	tail -f CLEARING1.debug
+	cd .. and check tail -100 startist.log 
+
+6. Compile ua_srv with modified Makefile for Encryption Format
+7. Modifiy the /home/India/e3006526/src/ua_srv/ua_srv-0.16.24/Makefile.am "add demo on subdirs list"
+8. Modifiy the /home/India/e3006526/src/ua_srv/ua_srv-0.16.24/src> vi Makefile.am 
+	/home/India/e3006526/src/ua_srv/ua_srv-0.16.24/src> diff -w Makefile.am_org Makefile.am
+	3c3
+	< bin_PROGRAMS = ua EncryptFile DecryptFile
+	---
+	> bin_PROGRAMS = ua
+	16,20d15
+	<
+	< EncryptFile_LDADD =
+	< EncryptFile_SOURCES = NotSupported.cxx
+	< DecryptFile_LDADD =
+	< DecryptFile_SOURCES = NotSupported.cxx
+	/home/India/e3006526/src/ua_srv/ua_srv-0.16.24/src>
+9. Compile the package of ua_srv and follow the step 5 again.
+10.start the clearing.
+11.EncryptFile tc57.dat to find the file sizes changes.
+
+Note : Incase mail box not up then compile below packages.
+
+ua_srv, default_opt, unlockshm_opt --- Packages need to compile
+
+For Clear File run : clearfile_opt-0.0.1
+
+Note : If Not comes Incoming file system balance than remove "default_opt, unlockshm_opt" from bdir to start the clearing.
+Better to Compile clearfile_opt-0.0.1 and ua_srv alone
+
+-----------------------------------------------------------------------------------------------------------------
+10.74.168.23 : e3006526 - Se3006526 - Rizwana
+10.166.41.255 : istrcc - Summer10 -(Sun Solar 2.4 Build )
+
+-----------------------------------------------------------------------------------------------------------------
+for Build_env Update follow the procedures 
+
+/home3/e3026054/switchgui/pdir20180524/ositeroot/cfg> build_env -update -os=SOL-211-64
+
+After as usual procedure 
+
+For version update select option 2---
+
+after as usal only like override and sharememory option etc.
+
+-----------------------------------------------------------------------------------------------------------------
+No Need to compile all the package.. if changed canonical_msg
+-----------------------------------------------------------------------------------------------------------------
+canonical_msg-0.25.72 
+CoreEntitiesServices_lib-0.19.31 
+CcBaseCalc_util-0.5.5 
+libCurrConv_util-0.6.11 
+Qualif_lib-0.8.41 
+tvsTxnContainer_lib-0.4.10 
+FeesQualif_lib-0.4.36 
+EditEngine_lib-0.4.6 
+tvsstruct_lib-0.0.3 
+clearing_lib-0.32.102
+ua_pos_dc-0.17.71
+-----------------------------------------------------------------------------------------------------------------
+edit ipm file and make it supporting format.
+
+to view the ipmclear.dat file, Decrypt the file and use the below command
+ipmv -t ipmclear.dat.dec >ipmclear.dat.clear
+if we want to change/modify anything in this file and reimport again then modify the file and use the below command
+ipmmsg ipmclear.dat.clear ipmclear.dat.clear1 and then Encrypt the file and use it for import 
+
+-----------------------------------------------------------------------------------------------------------------
+Test Tvs File : -
+
+how to do testTVS 
+1. do mbinit
+2. create one file like 'test.tvs'
+3. enter testTVS and than go inside
+4. follow below steps.
+/home3/e3026054/test> testTVS
+TVSEdit > TVSfile test.tvs write
+Location type 'TVSfile' ID=[test.tvs] added to location list
+TVSEdit > mailbox CLEARING1
+mailbox ID is 4
+Location type 'mailbox' ID=[CLEARING1] added to location list
+TVSEdit > export
+        export <location-type> <location-name> <TVS-file-name>
+TVSEdit > export mailbox CLEARING1 test.tvs
+TVS file ready for import/export
+mb_read returns message [CanonicalFileHeader] of length 536
+TVS message contains 16279 tags
+TIME:[ Thu Sep 20 16:59:47 2018 ]
+  TVSMessageNode::GetTag(): Event=[Err/TVSRT/NoNode] TargetRole=[CanonicalFileHeader]
+  TVSMessageNode::GetTag(): Event=[Err/TVSRT/NoNode] TargetRole=[CanonicalFileHeader]
+  TVSMessageNode::GetTag(): Event=[Err/TVSRT/NoNode] TargetRole=[CanonicalFileHeader]
+mb_read returns message [CanonicalBatchHeader] of length 572
+  TVSMessageNode::GetTag(): Event=[Err/TVSRT/NoNode] TargetRole=[CanonicalBatchHeader]
+  TVSMessageNode::GetTag(): Event=[Err/TVSRT/NoNode] TargetRole=[CanonicalBatchHeader]
+  TVSMessageNode::GetTag(): Event=[Err/TVSRT/NoNode] TargetRole=[CanonicalBatchHeader]
+  TVSMessageNode::GetTag(): Event=[Err/TVSRT/NoNode] TargetRole=[CanonicalBatchHeader]
+mb_read returns message [DCFFileHeader] of length 519
+  TVSMessageNode::GetTag(): Event=[Err/TVSRT/NoNode] TargetRole=[DCFFileHeader]
+mb_read returns message [CanonicalClearing] of length 4298
+Invalid Type: OCBlob
+mb_read returns message [DCFFileTrailer] of length 520
+  TVSMessageNode::GetTag(): Event=[Err/TVSRT/NoNode] TargetRole=[DCFFileTrailer]
+
+-----------------------------------------------------------------------------------------------------------------
+how to view the map file format using tv57v 
+
+/home3/e3026054/pdir20190315/ua_pos_dc> tc57v
+        tc57 dataformat file verification
+        Usage :  tc57v tc57filename options
+               options: -m -s -VISA=<VAl> -MC=<VAl> -AMEX=<VAl> -DISCOVER=<VAL>.
+               -m      need to show map item, call-back function and default values.
+               -s      silent -  no CARD TYPE map display.
+        Default CARD TYPE:
+              VISA       :V    could be overriden by -VISA=
+              MC         :M    could be overriden by -MC=
+              AMEX       :S    could be overriden by -AMEX=
+              DISCOVER   :R    could be overriden by -DISCOVER=
+
+/home3/e3026054/pdir20190315/ua_pos_dc> ls -lrt
+
+/home3/e3026054/pdir20190315/ua_pos_dc> tc57v tc57.dat -m -MC
+        tc57 dataformat file verification
+                File : tc57.dat
+
+        Default CARD TYPE:
+              VISA       :V    could be overriden by -VISA=
+              MC         :M    could be overriden by -MC=
+              AMEX       :S    could be overriden by -AMEX=
+              DISCOVER   :R    could be overriden by -DISCOVER=
+
+-----------------------------------------------------------------------------------------------------------------
+/home3/e5543392/pdir20190529/log/debug> history
+685     cd src
+686     l
+687     vi ua_dc_import.cxx
+688     pu
+689     pu
+690     debug
+691     dbmcmd debugon				------ give the command to kill the clearing process it'll restart 
+692     kill 17335
+693     kill 17339
+694     pu
+695     l
+696     tail -f clearing2.debug
+697     vi clearing2.debug
+698     l
+699     hisotry 100
+700     history
+/home3/e5543392/pdir20190529/log/debug>
+-----------------------------------------------------------------------------------------------------------------
+
